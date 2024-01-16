@@ -62,6 +62,16 @@ pip install git+https://github.com/recursionpharma/gflownet.git@v0.0.10 --find-l
 
 If package dependencies seem not to work, you may need to install the exact frozen versions listed `requirements/`, i.e. `pip install -r requirements/main_3.9.txt`.
 
+## Antibiotics
+
+For antibiotics applications, install additional dependencies:
+```bash
+pip install chemprop==1.6.1
+pip install descriptastorus==2.6.1
+```
+
+Then run `python src/gflownet/tasks/seh_frag_moo.py` to generate antibiotics that are optimize for _S. aureus_ activity, solubility, and synthetic accessibility.
+
 ## Developing & Contributing
 
 TODO: Write Contributing.md.
