@@ -29,7 +29,7 @@ class TempCondConfig:
 
 @dataclass
 class MultiObjectiveConfig:
-    num_objectives: int = 2
+    num_objectives: int = 3
     num_thermometer_dim: int = 16
 
 

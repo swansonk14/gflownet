@@ -323,6 +323,10 @@ class SEHMOOTask(SEHTask):
                         if v.item()
                     ]
                 )
+
+                # Clip to [-10, 4] and normalize to [0, 1]
+                solubility_preds = (solubility_preds.clip(-10, 4) + 10) / 14
+
                 flat_r.append(solubility_preds)
 
             if "seh" in self.objectives:
@@ -512,15 +516,14 @@ class RepeatedCondInfoDataset:
 
 def main():
     """Example of how this model can be run."""
-    # TODO: should we change hyperparameters for antibiotics?
     hps = {
         "log_dir": "./logs/antibiotics",
         "device": "cuda" if torch.cuda.is_available() else "cpu",
         "pickle_mp_messages": True,
         "overwrite_existing_exp": True,
         "seed": 0,
-        "num_training_steps": 500,
-        "num_final_gen_steps": 50,
+        "num_training_steps": 1000,
+        "num_final_gen_steps": 150,
         "validate_every": 100,
         "num_workers": 0,
         "algo": {

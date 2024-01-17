@@ -70,6 +70,8 @@ pip install chemprop==1.6.1
 pip install descriptastorus==2.6.1
 ```
 
+**Note:** If you get the issue `ImportError: libXrender.so.1: cannot open shared object file: No such file or directory`, run `conda install -c conda-forge xorg-libxrender`.
+
 Then run `python src/gflownet/tasks/seh_frag_moo.py` to generate antibiotics that are optimize for _S. aureus_ activity, solubility, and synthetic accessibility.
 
 ## Developing & Contributing
