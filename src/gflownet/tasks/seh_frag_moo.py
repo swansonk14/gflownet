@@ -2,7 +2,7 @@ import os
 import pathlib
 import shutil
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Tuple, Union
 
 import numpy as np
 import torch
@@ -12,8 +12,10 @@ from chemprop.models import MoleculeModel
 from chemprop.utils import load_checkpoint, load_scalers
 from descriptastorus.descriptors import rdNormalizedDescriptors
 from rdkit.Chem import QED, Descriptors, MolToSmiles
+from rdkit.Chem.Crippen import MolLogP
 from rdkit.Chem.rdchem import Mol as RDMol
 from sklearn.preprocessing import StandardScaler
+from tap import Tap
 from torch import Tensor
 from torch.utils.data import Dataset
 
@@ -25,6 +27,7 @@ from gflownet.models import bengio2021flow
 from gflownet.tasks.seh_frag import SEHFragTrainer, SEHTask
 from gflownet.trainer import FlatRewards, RewardScalar
 from gflownet.utils import metrics, sascore
+from gflownet.utils.config import MultiObjectiveConfig
 from gflownet.utils.conditioning import FocusRegionConditional, MultiObjectiveWeightedPreferences
 from gflownet.utils.multiobjective_hooks import MultiObjectiveStatsHook, TopKHook
 
@@ -194,7 +197,8 @@ class SEHMOOTask(SEHTask):
                 device=self.device,
             )
 
-        assert set(self.objectives) <= {"s_aureus", "solubility", "seh", "qed", "sa", "mw"} and len(self.objectives) == len(set(self.objectives))
+        assert (set(self.objectives) <= {"s_aureus", "solubility", "seh", "clogp", "qed", "sa", "mw"}
+                and len(self.objectives) == len(set(self.objectives)))
 
     def flat_reward_transform(self, y: Union[float, Tensor]) -> FlatRewards:
         return FlatRewards(torch.as_tensor(y))
@@ -323,10 +327,7 @@ class SEHMOOTask(SEHTask):
                         if v.item()
                     ]
                 )
-
-                # Clip to [-10, 4] and normalize to [0, 1]
-                solubility_preds = (solubility_preds.clip(-10, 4) + 10) / 14
-
+                solubility_preds = ((solubility_preds + 10) / 14).clip(0, 1)
                 flat_r.append(solubility_preds)
 
             if "seh" in self.objectives:
@@ -341,6 +342,11 @@ class SEHMOOTask(SEHTask):
                     return f(x)
                 except Exception:
                     return default
+
+            if "clogp" in self.objectives:
+                clogps = torch.tensor([safe(MolLogP, i, 0) for i, v in zip(mols, is_valid) if v.item()])
+                clogps = ((clogps + 10) / 20).clip(0, 1)
+                flat_r.append(clogps)
 
             if "qed" in self.objectives:
                 qeds = torch.tensor([safe(QED.qed, i, 0) for i, v in zip(mols, is_valid) if v.item()])
@@ -514,8 +520,14 @@ class RepeatedCondInfoDataset:
         return torch.tensor(self.cond_info_vectors[int(idx // self.repeat)])
 
 
+class Args(Tap):
+    objectives: List[Literal["s_aureus", "solubility", "clogp", "seh", "qed", "sa", "mw"]]
+
+
 def main():
     """Example of how this model can be run."""
+    args = Args().parse_args()
+
     hps = {
         "log_dir": "./logs/antibiotics",
         "device": "cuda" if torch.cuda.is_available() else "cpu",
@@ -523,7 +535,7 @@ def main():
         "overwrite_existing_exp": True,
         "seed": 0,
         "num_training_steps": 1000,
-        "num_final_gen_steps": 150,
+        "num_final_gen_steps": 160,
         "validate_every": 100,
         "num_workers": 0,
         "algo": {
@@ -542,7 +554,7 @@ def main():
         },
         "task": {
             "seh_moo": {
-                "objectives": ["s_aureus", "solubility", "sa"],
+                "objectives": args.objectives,
                 "n_valid": 15,
                 "n_valid_repeats": 128,
             },
@@ -582,6 +594,10 @@ def main():
             raise ValueError(f"Log dir {hps['log_dir']} already exists. Set overwrite_existing_exp=True to delete it.")
     os.makedirs(hps["log_dir"])
 
+    # Set number of objectives
+    MultiObjectiveConfig.num_objectives = len(hps["task"]["seh_moo"]["objectives"])
+
+    # Run the trainer
     trial = SEHMOOFragTrainer(hps)
     trial.print_every = 1
     trial.run()
