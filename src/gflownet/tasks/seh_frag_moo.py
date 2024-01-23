@@ -522,6 +522,7 @@ class RepeatedCondInfoDataset:
 
 class Args(Tap):
     objectives: List[Literal["s_aureus", "solubility", "clogp", "seh", "qed", "sa", "mw"]]
+    log_dir: str
 
 
 def main():
@@ -529,7 +530,7 @@ def main():
     args = Args().parse_args()
 
     hps = {
-        "log_dir": "./logs/antibiotics",
+        "log_dir": args.log_dir,
         "device": "cuda" if torch.cuda.is_available() else "cpu",
         "pickle_mp_messages": True,
         "overwrite_existing_exp": True,
