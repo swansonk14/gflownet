@@ -114,9 +114,9 @@ class MultiObjectiveWeightedPreferences(Conditional):
         return {"preferences": preferences, "encoding": self.encode(preferences)}
 
     def transform(self, cond_info: Dict[str, Tensor], flat_reward: Tensor) -> Tensor:
-        scalar_logreward = (flat_reward * cond_info["preferences"]).sum(1).clamp(min=1e-30).log()
-        assert len(scalar_logreward.shape) == 1, f"scalar_logreward should be a 1D array, got {scalar_logreward.shape}"
-        return scalar_logreward
+        scalar_reward = (flat_reward * cond_info["preferences"]).sum(1)  # .clamp(min=1e-30).log()
+        assert len(scalar_reward.shape) == 1, f"scalar_reward should be a 1D array, got {scalar_reward.shape}"
+        return scalar_reward
 
     def encoding_size(self):
         return max(1, self.num_thermometer_dim * self.num_objectives)
