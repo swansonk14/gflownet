@@ -73,7 +73,25 @@ pip install typed-argument-parser==1.9.0
 
 **Note:** If you get the issue `ImportError: libXrender.so.1: cannot open shared object file: No such file or directory`, run `conda install -c conda-forge xorg-libxrender`.
 
-Then run `python src/gflownet/tasks/seh_frag_moo.py --objectives s_aureus solubility --log_dir logs/s_aureus_solubility` to generate antibiotics that are optimize for _S. aureus_ activity and solubility.
+Then run the following experiments.
+
+```bash
+python src/gflownet/tasks/seh_frag_moo.py \
+    --objectives clogp qed \
+    --log_dir logs/clogp_qed
+
+python src/gflownet/tasks/seh_frag_moo.py \
+    --objectives clogp qed sa \
+    --log_dir logs/clogp_qed_sa
+
+python src/gflownet/tasks/seh_frag_moo.py \
+    --objectives s_aureus solubility \
+    --log_dir logs/s_aureus_solubility
+
+python src/gflownet/tasks/seh_frag_moo.py \
+    --objectives s_aureus solubility sa \
+    --log_dir logs/s_aureus_solubility_sa
+```
 
 ## Developing & Contributing
 
