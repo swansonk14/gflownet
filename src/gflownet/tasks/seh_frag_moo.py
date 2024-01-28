@@ -27,7 +27,7 @@ from gflownet.models import bengio2021flow
 from gflownet.tasks.seh_frag import SEHFragTrainer, SEHTask
 from gflownet.trainer import FlatRewards, RewardScalar
 from gflownet.utils import metrics, sascore
-from gflownet.utils.config import MultiObjectiveConfig
+from gflownet.utils.config import ConditionalsConfig, MultiObjectiveConfig
 from gflownet.utils.conditioning import FocusRegionConditional, MultiObjectiveWeightedPreferences
 from gflownet.utils.multiobjective_hooks import MultiObjectiveStatsHook, TopKHook
 
@@ -596,7 +596,9 @@ def main():
     os.makedirs(hps["log_dir"])
 
     # Set number of objectives
-    MultiObjectiveConfig.num_objectives = len(hps["task"]["seh_moo"]["objectives"])
+    num_objectives = len(hps["task"]["seh_moo"]["objectives"])
+    MultiObjectiveConfig.num_objectives = num_objectives
+    ConditionalsConfig.moo.num_objectives = num_objectives
 
     # Run the trainer
     trial = SEHMOOFragTrainer(hps)
