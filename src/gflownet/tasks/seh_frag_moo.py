@@ -187,13 +187,13 @@ class SEHMOOTask(SEHTask):
         # Load Chemprop models
         if "s_aureus" in self.objectives:
             self.models["s_aureus"] = ChempropScorer(
-                model_path=Path("../SyntheMol/rl/models/s_aureus_chemprop"),
+                model_path=Path("../SyntheMol/rl/models/s_aureus_chemprop_rdkit"),
                 device=self.device,
             )
 
         if "solubility" in self.objectives:
             self.models["solubility"] = ChempropScorer(
-                model_path=Path("../SyntheMol/rl/models/solubility_chemprop"),
+                model_path=Path("../SyntheMol/rl/models/solubility_chemprop_rdkit"),
                 device=self.device,
             )
 
