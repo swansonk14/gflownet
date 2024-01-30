@@ -73,17 +73,9 @@ pip install typed-argument-parser==1.9.0
 
 **Note:** If you get the issue `ImportError: libXrender.so.1: cannot open shared object file: No such file or directory`, run `conda install -c conda-forge xorg-libxrender`.
 
-Then run the following experiments.
+Then run the following experiments to generate molecules.
 
 ```bash
-python src/gflownet/tasks/seh_frag_moo.py \
-    --objectives clogp qed \
-    --log_dir logs/clogp_qed
-
-python src/gflownet/tasks/seh_frag_moo.py \
-    --objectives clogp qed sa \
-    --log_dir logs/clogp_qed_sa
-
 python src/gflownet/tasks/seh_frag_moo.py \
     --objectives s_aureus solubility \
     --log_dir logs/s_aureus_solubility
@@ -91,6 +83,94 @@ python src/gflownet/tasks/seh_frag_moo.py \
 python src/gflownet/tasks/seh_frag_moo.py \
     --objectives s_aureus solubility sa \
     --log_dir logs/s_aureus_solubility_sa
+```
+
+Next, extract the results from the sqlite database to CSV.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+python scripts/extract_results.py \
+    --results_path logs/${MODEL}/final/generated_mols_0.db \
+    --save_path logs/${MODEL}/final/molecules.csv
+done
+```
+
+Compute novelty of the generated molecules.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+chemfunc nearest_neighbor \
+    --data_path logs/${MODEL}/final/molecules.csv \
+    --reference_data_path ../SyntheMol/rl/data/s_aureus/s_aureus_hits.csv \
+    --reference_name train_hits \
+    --metric tversky \
+    --smiles_column smi
+
+chemfunc nearest_neighbor \
+    --data_path logs/${MODEL}/final/molecules.csv \
+    --reference_data_path ../SyntheMol/rl/data/chembl/chembl.csv \
+    --reference_name chembl \
+    --metric tversky \
+    --smiles_column smi
+done
+```
+
+Compute synthetic accessibility scores.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+chemfunc compute_properties \
+    --data_path logs/${MODEL}/final/molecules.csv \
+    --properties sa_score \
+    --smiles_column smi
+done
+```
+
+Filter by synthetic accessibility scores.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+chemfunc filter_molecules \
+    --data_path logs/${MODEL}/final/molecules.csv \
+    --save_path logs/${MODEL}/final/molecules_sa.csv \
+    --property_column sa_score \
+    --max_value 4.0
+done
+```
+
+Select hit molecules that satisfy novelty, diversity, and efficacy thresholds.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+python scripts/data/select_molecules.py \
+    --data_path logs/${MODEL}/final/molecules_sa.csv \
+    --save_molecules_path logs/${MODEL}/final/hits.csv \
+    --save_analysis_path logs/${MODEL}/final/analysis.csv \
+    --score_columns "fr_0" "fr_1" \
+    --score_thresholds 0.5 -4 \
+    --novelty_threshold 0.6 \
+    --similarity_threshold 0.6 \
+    --sort_column "fr_0" \
+    --descending \
+    --smiles_column smi
+done
+```
+
+Visualize hits.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+chemfunc visualize_molecules \
+    --data_path logs/${MODEL}/final/hits.csv \
+    --save_dir logs/${MODEL}/final/hits \
+    --smiles_column smi
+done
 ```
 
 ## Developing & Contributing
