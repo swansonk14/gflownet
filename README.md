@@ -67,9 +67,14 @@ If package dependencies seem not to work, you may need to install the exact froz
 For antibiotics applications, install additional dependencies:
 ```bash
 pip install chemprop==1.6.1
+pip install chemfunc==1.0.5
 pip install descriptastorus==2.6.1
 pip install typed-argument-parser==1.9.0
 ```
+
+TODO: chemfunc Python version issue
+
+TODO: move these commands to SyntheMol README
 
 **Note:** If you get the issue `ImportError: libXrender.so.1: cannot open shared object file: No such file or directory`, run `conda install -c conda-forge xorg-libxrender`.
 
@@ -96,6 +101,20 @@ python scripts/extract_results.py \
 done
 ```
 
+Rename columns and rescale solubility.
+
+```bash
+for MODEL in s_aureus_solubility s_aureus_solubility_sa
+do
+python -c "import pandas as pd;
+path = 'logs/${MODEL}/final/molecules.csv';
+data = pd.read_csv(path);
+data = data.rename(columns={'smi': 'smiles', 'fr_0': 'S. aureus', 'fr_1': 'Solubility', 'fr_2': 'sa_score_unscaled'});
+data['Solubility'] = data['Solubility'] * 14 - 10;
+data.to_csv(path, index=False)"
+done
+```
+
 Compute novelty of the generated molecules.
 
 ```bash
@@ -105,15 +124,13 @@ chemfunc nearest_neighbor \
     --data_path logs/${MODEL}/final/molecules.csv \
     --reference_data_path ../SyntheMol/rl/data/s_aureus/s_aureus_hits.csv \
     --reference_name train_hits \
-    --metric tversky \
-    --smiles_column smi
+    --metric tversky
 
 chemfunc nearest_neighbor \
     --data_path logs/${MODEL}/final/molecules.csv \
     --reference_data_path ../SyntheMol/rl/data/chembl/chembl.csv \
     --reference_name chembl \
-    --metric tversky \
-    --smiles_column smi
+    --metric tversky
 done
 ```
 
@@ -124,8 +141,7 @@ for MODEL in s_aureus_solubility s_aureus_solubility_sa
 do
 chemfunc compute_properties \
     --data_path logs/${MODEL}/final/molecules.csv \
-    --properties sa_score \
-    --smiles_column smi
+    --properties sa_score
 done
 ```
 
@@ -137,7 +153,7 @@ do
 chemfunc filter_molecules \
     --data_path logs/${MODEL}/final/molecules.csv \
     --save_path logs/${MODEL}/final/molecules_sa.csv \
-    --property_column sa_score \
+    --filter_column sa_score \
     --max_value 4.0
 done
 ```
@@ -147,17 +163,16 @@ Select hit molecules that satisfy novelty, diversity, and efficacy thresholds.
 ```bash
 for MODEL in s_aureus_solubility s_aureus_solubility_sa
 do
-python scripts/data/select_molecules.py \
+python ../SyntheMol/scripts/data/select_molecules.py \
     --data_path logs/${MODEL}/final/molecules_sa.csv \
     --save_molecules_path logs/${MODEL}/final/hits.csv \
     --save_analysis_path logs/${MODEL}/final/analysis.csv \
-    --score_columns "fr_0" "fr_1" \
+    --score_columns "S. aureus" "Solubility" \
     --score_thresholds 0.5 -4 \
     --novelty_threshold 0.6 \
     --similarity_threshold 0.6 \
-    --sort_column "fr_0" \
-    --descending \
-    --smiles_column smi
+    --sort_column "S. aureus" \
+    --descending
 done
 ```
 
@@ -168,8 +183,7 @@ for MODEL in s_aureus_solubility s_aureus_solubility_sa
 do
 chemfunc visualize_molecules \
     --data_path logs/${MODEL}/final/hits.csv \
-    --save_dir logs/${MODEL}/final/hits \
-    --smiles_column smi
+    --save_dir logs/${MODEL}/final/hits
 done
 ```
 
