@@ -101,7 +101,7 @@ python scripts/extract_results.py \
 done
 ```
 
-Rename columns and rescale solubility.
+Rename columns and rescale solubility and SA score.
 
 ```bash
 for MODEL in s_aureus_solubility s_aureus_solubility_sa
@@ -109,8 +109,9 @@ do
 python -c "import pandas as pd;
 path = 'logs/${MODEL}/final/molecules.csv';
 data = pd.read_csv(path);
-data = data.rename(columns={'smi': 'smiles', 'fr_0': 'S. aureus', 'fr_1': 'Solubility', 'fr_2': 'sa_score_unscaled'});
-data['Solubility'] = data['Solubility'] * 14 - 10;
+data = data.rename(columns={'smi': 'smiles', 'fr_0': 'S. aureus', 'fr_1': 'Solubility', 'fr_2': 'sa_score'});
+data['Solubility'] = 14 * data['Solubility'] - 10;
+if 'sa_score' in data: data['sa_score'] = -9 * data['sa_score'] + 10;
 data.to_csv(path, index=False)"
 done
 ```
@@ -134,46 +135,32 @@ chemfunc nearest_neighbor \
 done
 ```
 
-Compute synthetic accessibility scores.
+Select hit molecules that satisfy novelty, diversity, and efficacy thresholds (optionally including synthesiability).
 
 ```bash
-for MODEL in s_aureus_solubility s_aureus_solubility_sa
-do
-chemfunc compute_properties \
-    --data_path logs/${MODEL}/final/molecules.csv \
-    --properties sa_score
-done
-```
-
-Filter by synthetic accessibility scores.
-
-```bash
-for MODEL in s_aureus_solubility s_aureus_solubility_sa
-do
-chemfunc filter_molecules \
-    --data_path logs/${MODEL}/final/molecules.csv \
-    --save_path logs/${MODEL}/final/molecules_sa.csv \
-    --filter_column sa_score \
-    --max_value 4.0
-done
-```
-
-Select hit molecules that satisfy novelty, diversity, and efficacy thresholds.
-
-```bash
-for MODEL in s_aureus_solubility s_aureus_solubility_sa
-do
 python ../SyntheMol/scripts/data/select_molecules.py \
-    --data_path logs/${MODEL}/final/molecules_sa.csv \
-    --save_molecules_path logs/${MODEL}/final/hits.csv \
-    --save_analysis_path logs/${MODEL}/final/analysis.csv \
+    --data_path logs/s_aureus_solubility/final/molecules.csv \
+    --save_molecules_path logs/s_aureus_solubility/final/hits.csv \
+    --save_analysis_path logs/s_aureus_solubility/final/analysis.csv \
     --score_columns "S. aureus" "Solubility" \
-    --score_thresholds 0.5 -4 \
+    --score_comparators ">=0.5" ">=-4" \
     --novelty_threshold 0.6 \
     --similarity_threshold 0.6 \
+    --select_num 150 \
     --sort_column "S. aureus" \
     --descending
-done
+
+python ../SyntheMol/scripts/data/select_molecules.py \
+    --data_path logs/s_aureus_solubility_sa/final/molecules.csv \
+    --save_molecules_path logs/s_aureus_solubility_sa/final/hits.csv \
+    --save_analysis_path logs/s_aureus_solubility_sa/final/analysis.csv \
+    --score_columns "S. aureus" "Solubility" "sa_score" \
+    --score_comparators ">=0.5" ">=-4" "<=4" \
+    --novelty_threshold 0.6 \
+    --similarity_threshold 0.6 \
+    --select_num 150 \
+    --sort_column "S. aureus" \
+    --descending
 ```
 
 Visualize hits.
