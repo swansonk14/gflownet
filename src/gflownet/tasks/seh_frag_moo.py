@@ -87,9 +87,7 @@ def chemprop_predict_on_molecule_ensemble(
     return float(
         np.mean(
             [
-                chemprop_predict_on_molecule(
-                    model=model, smiles=smiles, fingerprint=fingerprint, scaler=scaler
-                )
+                chemprop_predict_on_molecule(model=model, smiles=smiles, fingerprint=fingerprint, scaler=scaler)
                 for model, scaler in zip(models, scalers)
             ]
         )
@@ -114,22 +112,15 @@ class ChempropScorer:
             model_paths = list(model_path.glob("**/*.pt"))
 
             if len(model_paths) == 0:
-                raise ValueError(
-                    f"Could not find any models in directory {model_path}."
-                )
+                raise ValueError(f"Could not find any models in directory {model_path}.")
         else:
             model_paths = [model_path]
 
         # Load models
-        self.models = [
-            load_checkpoint(path=str(model_path), device=device).eval()
-            for model_path in model_paths
-        ]
+        self.models = [load_checkpoint(path=str(model_path), device=device).eval() for model_path in model_paths]
 
         # Load scalers
-        self.scalers = [
-            load_scalers(path=str(model_path))[0] for model_path in model_paths
-        ]
+        self.scalers = [load_scalers(path=str(model_path))[0] for model_path in model_paths]
 
     def __call__(self, smiles: str) -> float:
         """Scores a molecule using a Chemprop-RDKit model or ensemble of models.
@@ -197,8 +188,9 @@ class SEHMOOTask(SEHTask):
                 device=self.device,
             )
 
-        assert (set(self.objectives) <= {"s_aureus", "solubility", "seh", "clogp", "qed", "sa", "mw"}
-                and len(self.objectives) == len(set(self.objectives)))
+        assert set(self.objectives) <= {"s_aureus", "solubility", "seh", "clogp", "qed", "sa", "mw"} and len(
+            self.objectives
+        ) == len(set(self.objectives))
 
     def flat_reward_transform(self, y: Union[float, Tensor]) -> FlatRewards:
         return FlatRewards(torch.as_tensor(y))
@@ -311,21 +303,13 @@ class SEHMOOTask(SEHTask):
 
             if "s_aureus" in self.objectives:
                 s_aureus_preds = torch.tensor(
-                    [
-                        self.models["s_aureus"](MolToSmiles(i))
-                        for i, v in zip(mols, is_valid)
-                        if v.item()
-                    ]
+                    [self.models["s_aureus"](MolToSmiles(i)) for i, v in zip(mols, is_valid) if v.item()]
                 )
                 flat_r.append(s_aureus_preds)
 
             if "solubility" in self.objectives:
                 solubility_preds = torch.tensor(
-                    [
-                        self.models["solubility"](MolToSmiles(i))
-                        for i, v in zip(mols, is_valid)
-                        if v.item()
-                    ]
+                    [self.models["solubility"](MolToSmiles(i)) for i, v in zip(mols, is_valid) if v.item()]
                 )
                 solubility_preds = ((solubility_preds + 10) / 14).clip(0, 1)
                 flat_r.append(solubility_preds)
@@ -358,8 +342,8 @@ class SEHMOOTask(SEHTask):
                 flat_r.append(sas)
 
             if "mw" in self.objectives:
-                molwts = torch.tensor([safe(Descriptors.MolWt, i, 1000) for i, v in zip(mols, is_valid) if v.item()])
-                molwts = ((300 - molwts) / 700 + 1).clip(0, 1)  # 1 until 300 then linear decay to 0 until 1000
+                molwts = torch.tensor([safe(Descriptors.MolWt, i, 600) for i, v in zip(mols, is_valid) if v.item()])
+                molwts = ((200 - molwts) / 400 + 1).clip(0, 1)  # 1 until 200 then linear decay to 0 until 600
                 flat_r.append(molwts)
 
             flat_rewards = torch.stack(flat_r, dim=1)
