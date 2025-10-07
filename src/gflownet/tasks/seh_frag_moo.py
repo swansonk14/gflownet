@@ -74,7 +74,7 @@ def chemprop_predict_on_molecule_ensemble(
     models: list[MoleculeModel],
     smiles: str,
     fingerprint: np.ndarray,
-    scalers: Union[List[StandardScaler], None] = None,
+    scalers: List[StandardScaler],
 ) -> float:
     """Predicts the property of a molecule using an ensemble of Chemprop-RDKit models.
 
